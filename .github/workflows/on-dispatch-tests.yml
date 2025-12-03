@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      CALC_URL: ${{ github.event.client_payload.calc_url || vars.CALC_URL || secrets.CALC_URL || 'https://vonwebsterlabajo.github.io/calculator-demo-with-grafana/' }}
+      CALC_URL: ${{ github.event.client_payload.calc_url || vars.CALC_URL || secrets.CALC_URL || 'https://vonwebsterlabajo.github.io/calculator-demo-with-grafana-staging/' }}
       HEADLESS: "true"
       PROJECT_NAME: calculator-demo-with-grafana
       ENV: ${{ github.event.client_payload.env || vars.ENV || 'staging' }}
