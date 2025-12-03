@@ -11,7 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+<<<<<<< Updated upstream
       CALC_URL: ${{ github.event.client_payload.calc_url || vars.CALC_URL || secrets.CALC_URL || 'https://jmiguelcheq.github.io/calculator-demo' }}
+=======
+      CALC_URL: ${{ github.event.client_payload.calc_url || vars.CALC_URL || secrets.CALC_URL || 'https://vonwebsterlabajo.github.io/calculator-demo-with-grafana-staging/' }}
+>>>>>>> Stashed changes
       HEADLESS: "true"
       PROJECT_NAME: calculator-demo
       ENV: ${{ github.event.client_payload.env || vars.ENV || 'staging' }}
