@@ -186,7 +186,7 @@ jobs:
 
           PASS_RATE=0
           if [ "$TOTAL" -gt 0 ]; then
-            PASS_RATE=$(awk "BEGIN {printf \"%.2f\", ($PASSED*100)/$TOTAL}")
+            PASS_RATE=$(awk "BEGIN {printf \"%.2f\", ($PASSED*100)/$TOTAL}" | LC_NUMERIC=C awk '{print $1}')
           fi
 
           echo "Parsed metrics -> total=$TOTAL passed=$PASSED failed=$FAILED broken=$BROKEN skipped=$SKIPPED unknown=$UNKNOWN duration_ms=$DURATION_MS pass_rate=$PASS_RATE"
@@ -198,7 +198,7 @@ jobs:
           LINE="automation_tests,project=${PROJECT_NAME},env=${ENVIRONMENT},branch=${BRANCH_NAME} total=${TOTAL}i,passed=${PASSED}i,failed=${FAILED}i,broken=${BROKEN}i,skipped=${SKIPPED}i,unknown=${UNKNOWN}i,duration_ms=${DURATION_MS}i,pass_rate=${PASS_RATE}"
 
           echo "Generated metrics.influx:"
-          echo "${LINE}" > metrics.influx
+          echo -n "${LINE}" > metrics.influx
           cat metrics.influx
 
           # Push to InfluxDB Cloud
