@@ -198,8 +198,9 @@ jobs:
           LINE="automation_tests,project=${PROJECT_NAME},env=${ENVIRONMENT},branch=${BRANCH_NAME} total=${TOTAL}i,passed=${PASSED}i,failed=${FAILED}i,broken=${BROKEN}i,skipped=${SKIPPED}i,unknown=${UNKNOWN}i,duration_ms=${DURATION_MS}i,pass_rate=${PASS_RATE}"
 
           echo "Generated metrics.influx:"
-          echo -n "${LINE}" > metrics.influx
-          cat metrics.influx
+          printf "%s\n" "$LINE" > metrics.influx
+          dos2unix metrics.influx || true
+          cat -A metrics.influx
 
           # Push to InfluxDB Cloud
           WRITE_URL="${INFLUX_URL%/}/api/v2/write?org=${INFLUX_ORG}&bucket=${INFLUX_BUCKET}&precision=s"
