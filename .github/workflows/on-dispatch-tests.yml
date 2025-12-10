@@ -100,42 +100,45 @@ jobs:
           fi
 
       # ---------- Push logs to Elastic Cloud (Kibana) ----------
-      - name: Prepare log file for Elasticsearch
-        if: ${{ always() }}
-        run: |
-          mkdir -p logs_input
-
-          if compgen -G "logs/*.log" > /dev/null; then
-            cat logs/*.log > logs_input/combined.log
-          else
-            echo "No .log files found in root/logs. Creating fallback file."
-            echo "No log output available." > logs_input/combined.log
-          fi
-
-      - name: Convert logs to NDJSON for Elasticsearch
-        if: ${{ always() }}
+      - name: Combine all log files
         run: |
           mkdir -p out
+          cat logs/*.log > out/combined.log
+          echo "Combined log created:"
+          ls -lh out/combined.log
 
-          awk '{
-            gsub(/"/, "\\\"");
-            printf("{\"index\":{\"_index\":\"automation-logs\"}}\n");
-            printf("{\"message\":\"%s\"}\n", $0);
-          }' logs_input/combined.log > out/logs.ndjson
+      - name: Convert combined log to NDJSON (Bulk format)
+        run: |
+          INDEX_NAME="calculator-logs"
+          > out/logs.ndjson
 
-      - name: Push logs to Elasticsearch via ingest pipeline
-        if: ${{ always() }}
+          while IFS= read -r line; do
+            ESCAPED=$(printf '%s' "$line" | sed 's/"/\\"/g')
+            printf '{"index":{"_index":"%s"}}\n' "$INDEX_NAME" >> out/logs.ndjson
+            printf '{"message":"%s"}\n' "$ESCAPED" >> out/logs.ndjson
+          done < out/combined.log
+
+      - name: Upload to Elasticsearch (with pipeline)
         env:
           ELASTIC_URL: ${{ secrets.ELASTIC_URL }}
           ELASTIC_USERNAME: ${{ secrets.ELASTIC_USERNAME }}
           ELASTIC_PASSWORD: ${{ secrets.ELASTIC_PASSWORD }}
         run: |
-          curl -X POST "$ELASTIC_URL/_bulk?pipeline=calculator-log-pipeline" \
-            -u "$ELASTIC_USERNAME:$ELASTIC_PASSWORD" \
+          RESPONSE=$(curl -s -o response.json -w "%{http_code}" \
+            -X POST "$ELASTIC_URL/_bulk?pipeline=calculator-log-pipeline" \
             -H "Content-Type: application/x-ndjson" \
-            --data-binary @out/logs.ndjson
+            --user "$ELASTIC_USERNAME:$ELASTIC_PASSWORD" \
+            --data-binary @out/logs.ndjson)
 
-          echo "Logs successfully pushed to Elasticsearch using pipeline"
+          echo "HTTP response: $RESPONSE"
+
+          if [ "$RESPONSE" -ge 200 ] && [ "$RESPONSE" -lt 300 ]; then
+            echo "Logs successfully pushed to Elasticsearch using pipeline"
+          else
+            echo "Failed to push logs. Elasticsearch response:"
+            cat response.json
+            exit 1
+          fi
 
       # ---------- Reports & artifacts ----------
       - name: Upload raw test reports (Surefire/Cucumber/Allure results)
