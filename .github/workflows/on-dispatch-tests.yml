@@ -100,47 +100,34 @@ jobs:
           fi
 
       # ---------- Push logs to Elastic Cloud (Kibana) ----------
-      - name: Prepare log file for Elasticsearch
-        if: ${{ always() }}
-        run: |
-          mkdir -p logs_input
-
-          # Combine all existing logs in root/logs/*.log
-          if compgen -G "logs/*.log" > /dev/null; then
-            cat logs/*.log > logs_input/combined.log
-          else
-            echo "No .log files found in root/logs. Creating fallback file."
-            echo "No log output available." > logs_input/combined.log
-          fi
-
-          echo "Collected logs from root/logs directory"
-
-      - name: Convert logs to NDJSON for Elasticsearch
-        if: ${{ always() }}
+      - name: Combine all log files
         run: |
           mkdir -p out
+          cat logs/*.log > out/combined.log
+          echo "Combined log created:"
+          ls -lh out/combined.log
 
+      - name: Convert combined log to NDJSON
+        run: |
           awk '{
-            gsub(/"/, "\\\"");
-            printf("{\"index\":{\"_index\":\"automation-logs\"}}\n");
-            printf("{\"@timestamp\":\"%s\",\"message\":\"%s\"}\n", strftime("%Y-%m-%dT%H:%M:%SZ"), $0);
-          }' logs/combined.log > out/logs.ndjson
+            gsub(/"/, "\\\"", $0);
+            printf("{\"message\":\"%s\"}\n", $0);
+          }' out/combined.log > out/logs.ndjson
 
-      - name: Push logs to Elasticsearch
-        if: ${{ always() }}
+      - name: Upload to Elasticsearch
         env:
           ELASTIC_URL: ${{ secrets.ELASTIC_URL }}
           ELASTIC_USERNAME: ${{ secrets.ELASTIC_USERNAME }}
           ELASTIC_PASSWORD: ${{ secrets.ELASTIC_PASSWORD }}
         run: |
           curl -X POST "$ELASTIC_URL/_bulk" \
-            -u "$ELASTIC_USERNAME:$ELASTIC_PASSWORD" \
             -H "Content-Type: application/x-ndjson" \
+            --user "$ELASTIC_USERNAME:$ELASTIC_PASSWORD" \
             --data-binary @out/logs.ndjson
 
-          echo "Logs successfully pushed to Elasticsearch"
+      - name: Done
+        run: echo "Logs successfully pushed to Elasticsearch"
 
-          
       # ---------- Reports & artifacts ----------
       - name: Upload raw test reports (Surefire/Cucumber/Allure results)
         if: ${{ failure() || success() }}
